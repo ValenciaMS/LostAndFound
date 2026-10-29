@@ -122,11 +122,53 @@ function renderStatic(): void {
   $('lbOpen').textContent = tr('open');
   $('langEn').setAttribute('aria-pressed', String(lang === 'en'));
   $('langEs').setAttribute('aria-pressed', String(lang === 'es'));
-  if (catalog) {
-    const date = new Date(catalog.updated).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    $('foot').textContent = `${tr('updated')} ${date}.`;
+  $('btnCheck').textContent = tr('check');
+  renderUpdated();
+}
+
+const locale = () => (lang === 'es' ? 'es-ES' : 'en-GB');
+
+function renderUpdated(): void {
+  if (!catalog) return;
+  const when = new Date(catalog.updated);
+  const abs = when.toLocaleString(locale(), { dateStyle: 'long', timeStyle: 'short' });
+  const mins = Math.max(0, Math.round((Date.now() - when.getTime()) / 60000));
+  const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: 'auto' });
+  const ago = mins < 60 ? rtf.format(-mins, 'minute') : mins < 1440 ? rtf.format(-Math.round(mins / 60), 'hour') : rtf.format(-Math.round(mins / 1440), 'day');
+  $('updated').textContent = `${tr('updated')}: ${abs} (${ago})`;
+}
+
+async function loadCatalog(): Promise<Catalog> {
+  const res = await fetch(`./photos.json?t=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(String(res.status));
+  return (await res.json()) as Catalog;
+}
+
+async function checkUpdates(): Promise<void> {
+  const btn = $<HTMLButtonElement>('btnCheck');
+  btn.disabled = true;
+  $('checkMsg').textContent = tr('checking');
+  try {
+    const fresh = await loadCatalog();
+    if (fresh.updated !== catalog.updated) {
+      catalog = fresh;
+      all = flatten(fresh);
+      readHash();
+      renderCats();
+      renderGrid();
+      renderUpdated();
+      $('checkMsg').textContent = tr('refreshed');
+    } else {
+      $('checkMsg').textContent = tr('upToDate');
+    }
+  } catch {
+    $('checkMsg').textContent = tr('checkError');
+  } finally {
+    btn.disabled = false;
   }
 }
+
+const flatten = (c: Catalog): Item[] => c.categories.flatMap((cat) => cat.photos.map((p) => ({ ...p, category: cat.name })));
 
 function setLang(next: Lang): void {
   lang = next;
@@ -162,6 +204,7 @@ function wireEvents(): void {
     query = (e.target as HTMLInputElement).value;
     renderGrid();
   });
+  $('btnCheck').onclick = () => void checkUpdates();
   $('langEn').onclick = () => setLang('en');
   $('langEs').onclick = () => setLang('es');
   $('lbClose').onclick = closeLightbox;
@@ -193,14 +236,13 @@ async function init(): Promise<void> {
   renderStatic();
   wireEvents();
   try {
-    const res = await fetch('./photos.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(String(res.status));
-    catalog = (await res.json()) as Catalog;
+    catalog = await loadCatalog();
   } catch {
     $('count').textContent = tr('loadError');
     return;
   }
-  all = catalog.categories.flatMap((c) => c.photos.map((p) => ({ ...p, category: c.name })));
+  all = flatten(catalog);
+  setInterval(renderUpdated, 60_000);
   readHash();
   renderCats();
   renderGrid();

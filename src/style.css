@@ -126,3 +126,8 @@ h1 { margin: 0; font-size: 1.6rem; text-wrap: balance; }
 .lang { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .lang button { padding: 5px 10px; border: 0; background: var(--card); color: var(--fg); font: inherit; cursor: pointer; }
 .lang button[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); }
+
+.updated { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; max-width: 1200px; margin: 0 auto 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: 0.9rem; }
+.check { padding: 3px 10px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+.check:disabled { opacity: 0.6; cursor: default; }
+#checkMsg { color: var(--muted); }
